@@ -11,7 +11,11 @@
        <div class="nav">
     <a href="/add_expense">➕ Add Expense</a>
     <a href="/view_expense">📜 View Expenses</a>
-    <a href="/logout">🚪 Logout ({{ user.username }})</a>
+   {% if user %}
+  <a href="{{ url_for('logout') }}">🚪 Logout ({{ user[1] }})</a>
+{% else %}
+  <a href="{{ url_for('login') }}">Login</a>
+{% endif %}
 </div>
 
         <h2>Summary by Category</h2>
@@ -46,6 +50,7 @@
     </script>
 </body>
 </html>
+
 
 
 
