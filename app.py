@@ -58,70 +58,61 @@ def load_user(user_id):
 from flask import request, redirect, url_for, render_template, flash, session
 from werkzeug.security import generate_password_hash
 
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
-        email = request.form["email"]
+from flask import Flask, request, redirect, render_template, flash
+from werkzeug.security import generate_password_hash
+import sqlite3  # or your DB connector
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        # Hash the password before storing
         hashed_password = generate_password_hash(password)
 
-        try:
-            db = get_db_connection()
-            cursor = db.cursor(cursor_factory=RealDictCursor)
+        # Save user to the database
+        conn = sqlite3.connect('your_database.db')
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO users (username, password) VALUES (?, ?)",
+            (username, hashed_password)
+        )
+        conn.commit()
+        conn.close()
 
-            cursor.execute(
-                "INSERT INTO users (username, password, email) VALUES (%s, %s, %s)",
-                (username, hashed_password, email)
-            )
-            db.commit()
-
-            cursor.close()
-            db.close()
-
-            flash("Registration successful! Please log in.")
-            return redirect(url_for("login"))
-
-        except psycopg2.errors.UniqueViolation:
-            db.rollback()
-            flash("Username or email already exists.")
-            return render_template("register.html")
-
-        except Exception as e:
-            db.rollback()
-            flash(f"An error occurred: {str(e)}")
-            return render_template("register.html")
-
-    return render_template("register.html")
+        flash("Registration successful! Please login.")
+        return redirect('/login')
+    
+    return render_template('register.html')
 
 
-from flask import request, redirect, url_for, render_template, flash, session
+
 from werkzeug.security import check_password_hash
+from flask import session
 
-@app.route("/login", methods=["GET", "POST"])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
 
-        db = get_db_connection()
-        cursor = db.cursor(cursor_factory=RealDictCursor)
-
-        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        conn = sqlite3.connect('your_database.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
         user = cursor.fetchone()
-
-        cursor.close()
-        db.close()
+        conn.close()
 
         if user and check_password_hash(user['password'], password):
             session['user_id'] = user['id']
-            return redirect(url_for("index"))
+            return redirect('/')
         else:
             flash("Invalid username or password")
-            return render_template("login.html")
-    
-    return render_template("login.html")
+            return redirect('/login')
+
+    return render_template('login.html')
+
 
 @app.route("/logout")
 @login_required
@@ -194,6 +185,7 @@ def view_expenses():
 if __name__ == "__main__":
     # ✅ host 0.0.0.0 is important for Heroku
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
