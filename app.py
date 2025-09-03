@@ -21,16 +21,14 @@ login_manager.login_view = "login"
 
 
 def get_db_connection():
-   conn = psycopg2.connect(
-    host=os.environ.get("DB_HOST"),
-    database=os.environ.get("DB_NAME"),
-    user=os.environ.get("DB_USER"),
-    password=os.environ.get("DB_PASSWORD"),
-    port=os.environ.get("DB_PORT", 5432)
-)
+    conn = psycopg2.connect(
+        host=os.environ.get("DB_HOST"),
+        database=os.environ.get("DB_NAME"),
+        user=os.environ.get("DB_USER"),
+        password=os.environ.get("DB_PASSWORD"),
+        port=os.environ.get("DB_PORT", 5432)
+    )
     return conn
-
-
 
 # ------------------- USER CLASS -------------------
 class User(UserMixin):
@@ -173,6 +171,7 @@ def view_expenses():
 if __name__ == "__main__":
     # ✅ host 0.0.0.0 is important for Heroku
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
