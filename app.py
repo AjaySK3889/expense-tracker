@@ -3,7 +3,8 @@ import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.secret_key = "your_secret_key_here"  # change this
+app.secret_key = "any_random_string_here"
+
 
 DB_NAME = "expenses.db"
 
@@ -77,8 +78,9 @@ def login():
         conn.close()
         if user and check_password_hash(user[1], password):
             session["user_id"] = user[0]
-            session["username"] = username
-            return redirect(url_for('home'))
+session["username"] = username
+           return redirect(url_for("home"))
+
         else:
             return "Invalid credentials"
     return render_template("login.html")
@@ -119,3 +121,4 @@ def view_expenses():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
