@@ -1,7 +1,15 @@
+
+from flask import Flask, render_template, request, redirect, flash, session
+from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
+from datetime import datetime
+
+app = Flask(__name__)
+app.secret_key = "your_secret_key"  # Change this to something secret
 
 DATABASE = "expense_tracker.db"
 
+# ---------------- DATABASE ----------------
 def init_db():
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
@@ -31,200 +39,113 @@ def init_db():
     conn.commit()
     conn.close()
 
-# Initialize database before first request
+# Initialize tables
 init_db()
 
-import os
-from flask import Flask, render_template, request, redirect, url_for, flash
-import psycopg2
-import psycopg2.extras
-import os
-from flask_bcrypt import Bcrypt
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-
-app = Flask(__name__)
-# ✅ Use environment variable for secret key
-app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey")
-
-bcrypt = Bcrypt(app)
-
-# Flask-Login setup
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = "login"
-
-# ------------------- DATABASE CONNECTION -------------------
-
-
-import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
-
+# ---------------- HELPER ----------------
 def get_db_connection():
-    conn = psycopg2.connect(
-        host=os.environ.get("DB_HOST"),
-        dbname=os.environ.get("DB_NAME"),
-        user=os.environ.get("DB_USER"),
-        password=os.environ.get("DB_PASSWORD"),
-        port=os.environ.get("DB_PORT", 5432),
-        sslmode="require"  # required for Render PostgreSQL
-    )
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
     return conn
 
-
-# ------------------- USER CLASS -------------------
-class User(UserMixin):
-    def __init__(self, user_id, username, email):
-        self.id = user_id
-        self.username = username
-        self.email = email
-
-@login_manager.user_loader
-def load_user(user_id):
-    db = get_db_connection()
-    cursor = db.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
-    user = cursor.fetchone()
-    db.close()
-    if user:
-        return User(user["user_id"], user["username"], user["email"])
-    return None
-
-# ------------------- AUTH ROUTES -------------------
-from flask import request, redirect, url_for, render_template, flash, session
-from werkzeug.security import generate_password_hash
-
-from flask import Flask, request, redirect, render_template, flash
-from werkzeug.security import generate_password_hash
-import sqlite3  # or your DB connector
-
-@app.route('/register', methods=['GET', 'POST'])
+# ---------------- REGISTER ----------------
+@app.route("/register", methods=["GET", "POST"])
 def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-
-        # Hash the password before storing
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
         hashed_password = generate_password_hash(password)
 
-        # Save user to the database
-        conn = sqlite3.connect('your_database.db')
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO users (username, password) VALUES (?, ?)",
-            (username, hashed_password)
-        )
-        conn.commit()
-        conn.close()
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO users (username, password) VALUES (?, ?)",
+                (username, hashed_password)
+            )
+            conn.commit()
+            conn.close()
+            flash("Registration successful! Please login.")
+            return redirect("/login")
+        except sqlite3.IntegrityError:
+            flash("Username already exists. Choose another.")
+            return redirect("/register")
 
-        flash("Registration successful! Please login.")
-        return redirect('/login')
-    
-    return render_template('register.html')
+    return render_template("register.html")
 
-
-
-from werkzeug.security import check_password_hash
-from flask import session
-
-@app.route('/login', methods=['GET', 'POST'])
+# ---------------- LOGIN ----------------
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
 
-        conn = sqlite3.connect('your_database.db')
-        conn.row_factory = sqlite3.Row
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
         user = cursor.fetchone()
         conn.close()
 
-        if user and check_password_hash(user['password'], password):
-            session['user_id'] = user['id']
-            return redirect('/')
+        if user and check_password_hash(user["password"], password):
+            session["user_id"] = user["id"]
+            flash("Logged in successfully!")
+            return redirect("/")
         else:
             flash("Invalid username or password")
-            return redirect('/login')
+            return redirect("/login")
 
-    return render_template('login.html')
+    return render_template("login.html")
 
-
+# ---------------- LOGOUT ----------------
 @app.route("/logout")
-@login_required
 def logout():
-    logout_user()
-    flash("Logged out successfully!", "info")
-    return redirect(url_for("login"))
+    session.clear()
+    flash("Logged out successfully!")
+    return redirect("/login")
 
-# ------------------- EXPENSE ROUTES -------------------
+# ---------------- HOME ----------------
 @app.route("/")
-@login_required
-def index():
-    db = get_db_connection()
-    cursor = db.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT c.category_name, SUM(e.amount) AS total_spent
-        FROM expenses e
-        JOIN categories c ON e.category_id = c.category_id
-        WHERE e.user_id = %s
-        GROUP BY c.category_name
-        ORDER BY total_spent DESC
-    """, (current_user.id,))
-    summary = cursor.fetchall()
-    db.close()
-    return render_template("index.html", summary=summary, user=current_user)
+def home():
+    if "user_id" not in session:
+        return redirect("/login")
 
-@app.route("/add", methods=["GET", "POST"])
-@login_required
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM expenses WHERE user_id = ? ORDER BY date DESC",
+        (session["user_id"],)
+    )
+    expenses = cursor.fetchall()
+    conn.close()
+
+    return render_template("home.html", expenses=expenses)
+
+# ---------------- ADD EXPENSE ----------------
+@app.route("/add_expense", methods=["GET", "POST"])
 def add_expense():
-    db = get_db_connection()
-    cursor = db.cursor(dictionary=True)
-
-    cursor.execute("SELECT * FROM categories")
-    categories = cursor.fetchall()
+    if "user_id" not in session:
+        return redirect("/login")
 
     if request.method == "POST":
-        category_id = request.form["category"]
-        amount = request.form["amount"]
-        description = request.form["description"]
-        date = request.form["date"]
+        title = request.form["title"]
+        amount = float(request.form["amount"])
+        category = request.form.get("category", "")
+        date = request.form.get("date", datetime.now().strftime("%Y-%m-%d"))
 
+        conn = get_db_connection()
+        cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO expenses (user_id, category_id, amount, description, expense_date) VALUES (%s, %s, %s, %s, %s)",
-            (current_user.id, category_id, amount, description, date)
+            "INSERT INTO expenses (user_id, title, amount, category, date) VALUES (?, ?, ?, ?, ?)",
+            (session["user_id"], title, amount, category, date)
         )
-        db.commit()
-        db.close()
+        conn.commit()
+        conn.close()
+
+        flash("Expense added successfully!")
         return redirect("/")
 
-    db.close()
-    return render_template("add_expense.html", categories=categories)
+    return render_template("add_expense.html")
 
-@app.route("/view")
-@login_required
-def view_expenses():
-    db = get_db_connection()
-    cursor = db.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT e.expense_id, c.category_name, e.amount, e.description, e.expense_date
-        FROM expenses e
-        JOIN categories c ON e.category_id = c.category_id
-        WHERE e.user_id = %s
-        ORDER BY e.expense_date DESC
-    """, (current_user.id,))
-    expenses = cursor.fetchall()
-    db.close()
-    return render_template("view_expenses.html", expenses=expenses)
-
-# ------------------- MAIN -------------------
+# ---------------- RUN APP ----------------
 if __name__ == "__main__":
-    # ✅ host 0.0.0.0 is important for Heroku
-    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
-
-
-
-
-
-
+    app.run(debug=True)
