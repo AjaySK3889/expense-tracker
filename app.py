@@ -90,22 +90,20 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-@app.route('/add_expense', methods=["GET", "POST"])
+@app.route("/add_expense", methods=["GET", "POST"])
 def add_expense():
-    if "user_id" not in session:
-        return redirect(url_for('login'))
     if request.method == "POST":
         category = request.form["category"]
-        amount = float(request.form["amount"])
+        amount = request.form["amount"]
         description = request.form["description"]
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO expenses (user_id, category, amount, description) VALUES (?, ?, ?, ?)",
-                       (session["user_id"], category, amount, description))
+        cursor.execute(
+            "INSERT INTO expenses (category, amount, description) VALUES (?, ?, ?)",
+            (category, amount, description)
+        )
         conn.commit()
-        conn.close()
-        return redirect(url_for('home'))
+        return redirect(url_for("view_expenses"))  # redirect to correct page
     return render_template("add_expense.html")
+
 
 @app.route('/view_expenses')
 def view_expenses():
@@ -121,6 +119,7 @@ def view_expenses():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 
