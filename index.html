@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Expense Tracker Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 Expense Tracker</h1>
+       <div class="nav">
+    <a href="/add">➕ Add Expense</a>
+    <a href="/view">📜 View Expenses</a>
+    <a href="/logout">🚪 Logout ({{ user.username }})</a>
+</div>
+
+        <h2>Summary by Category</h2>
+        <table>
+            <tr><th>Category</th><th>Total Spent</th></tr>
+            {% for row in summary %}
+            <tr>
+                <td>{{ row.category_name }}</td>
+                <td>₹{{ row.total_spent }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+
+        <h2>📊 Expense Chart</h2>
+        <canvas id="expenseChart" width="400" height="200"></canvas>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+        const expenseChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: [{% for row in summary %}'{{ row.category_name }}',{% endfor %}],
+                datasets: [{
+                    label: 'Expenses',
+                    data: [{% for row in summary %}{{ row.total_spent }},{% endfor %}],
+                    backgroundColor: ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF'],
+                    borderWidth: 1
+                }]
+            }
+        });
+    </script>
+</body>
+</html>
