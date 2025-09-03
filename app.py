@@ -90,18 +90,32 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+import sqlite3
+from flask import Flask, render_template, request, redirect, url_for
+
+app = Flask(__name__)
+
 @app.route("/add_expense", methods=["GET", "POST"])
 def add_expense():
     if request.method == "POST":
         category = request.form["category"]
         amount = request.form["amount"]
         description = request.form["description"]
+
+        # Connect to the database
+        conn = sqlite3.connect("expenses.db")
+        cursor = conn.cursor()
+
         cursor.execute(
             "INSERT INTO expenses (category, amount, description) VALUES (?, ?, ?)",
             (category, amount, description)
         )
+
         conn.commit()
-        return redirect(url_for("view_expenses"))  # redirect to correct page
+        conn.close()
+
+        return redirect(url_for("view_expenses"))  # make sure route exists
+
     return render_template("add_expense.html")
 
 
@@ -119,6 +133,7 @@ def view_expenses():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 
