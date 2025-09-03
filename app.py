@@ -118,7 +118,7 @@ def home():
     expenses = cursor.fetchall()
     conn.close()
 
-    return render_template("home.html", expenses=expenses)
+    return render_template("index.html", expenses=expenses)
 
 # ---------------- ADD EXPENSE ----------------
 @app.route("/add_expense", methods=["GET", "POST"])
@@ -149,3 +149,4 @@ def add_expense():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
