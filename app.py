@@ -120,34 +120,51 @@ def home():
     return render_template("index.html", expenses=expenses, user=user)
 
 # ---------------- ADD EXPENSE ----------------
-@app.route("/add_expense", methods=["GET", "POST"])
+from flask import Flask, render_template, request, redirect, url_for
+import sqlite3
+
+app = Flask(__name__)
+
+# Route to display the add expense form
+@app.route('/add_expense', methods=['GET', 'POST'])
 def add_expense():
-    if "user_id" not in session:
-        return redirect("/login")
+    if request.method == 'POST':
+        category = request.form['category']   # Get category from form
+        amount = request.form['amount']       # Get amount
+        description = request.form['description']  # Get description
 
-    if request.method == "POST":
-        title = request.form["title"]
-        amount = float(request.form["amount"])
-        category = request.form.get('category')
-        date = request.form.get("date", datetime.now().strftime("%Y-%m-%d"))
-
-        conn = get_db_connection()
+        # Insert into database
+        conn = sqlite3.connect('expenses.db')
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO expenses (user_id, title, amount, category, date) VALUES (?, ?, ?, ?, ?)",
-            (session["user_id"], title, amount, category, date)
+            "INSERT INTO expenses (category, amount, description) VALUES (?, ?, ?)",
+            (category, amount, description)
         )
         conn.commit()
         conn.close()
 
-        flash("Expense added successfully!")
-        return redirect("/")
+        return redirect(url_for('view_expenses'))
 
-    return render_template("add_expense.html")
+    return render_template('add_expense.html')  # Show the form
+
+# Route to view expenses
+@app.route('/view_expenses')
+def view_expenses():
+    conn = sqlite3.connect('expenses.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM expenses")
+    expenses = cursor.fetchall()
+    conn.close()
+    return render_template('view_expenses.html', expenses=expenses)
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
 
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 
