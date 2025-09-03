@@ -6,19 +6,26 @@
 </head>
 <body>
     <div class="container">
-        <h1>📜 All Expenses</h1>
-        <a href="/">⬅ Back to Dashboard</a>
-        <table>
-            <tr><th>Date</th><th>Category</th><th>Amount</th><th>Description</th></tr>
-            {% for e in expenses %}
-            <tr>
-                <td>{{ e.expense_date }}</td>
-                <td>{{ e.category_name }}</td>
-                <td>₹{{ e.amount }}</td>
-                <td>{{ e.description }}</td>
-            </tr>
-            {% endfor %}
-        </table>
+        <h2>Expenses</h2>
+<table border="1">
+    <tr>
+        <th>ID</th>
+        <th>Category</th>
+        <th>Amount</th>
+        <th>Description</th>
+    </tr>
+    {% for exp in expenses %}
+    <tr>
+        <td>{{ exp[0] }}</td>
+        <td>{{ exp[1] }}</td>
+        <td>{{ exp[2] }}</td>
+        <td>{{ exp[3] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+<a href="{{ url_for('add_expense') }}">Add another expense</a>
+
     </div>
 </body>
 </html>
+
