@@ -1,6 +1,8 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash
-import mysql.connector
+import psycopg2
+import psycopg2.extras
+import os
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 
@@ -16,9 +18,7 @@ login_manager.init_app(app)
 login_manager.login_view = "login"
 
 # ------------------- DATABASE CONNECTION -------------------
-import os
-import psycopg2
-import psycopg2.extras
+
 
 def get_db_connection():
     conn = psycopg2.connect(
@@ -173,4 +173,5 @@ def view_expenses():
 if __name__ == "__main__":
     # ✅ host 0.0.0.0 is important for Heroku
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
