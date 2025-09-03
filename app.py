@@ -1,3 +1,39 @@
+import sqlite3
+
+DATABASE = "expense_tracker.db"
+
+def init_db():
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    # Create users table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL
+    )
+    """)
+
+    # Create expenses table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        amount REAL NOT NULL,
+        category TEXT,
+        date TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+# Initialize database before first request
+init_db()
+
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash
 import psycopg2
@@ -185,6 +221,7 @@ def view_expenses():
 if __name__ == "__main__":
     # ✅ host 0.0.0.0 is important for Heroku
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
