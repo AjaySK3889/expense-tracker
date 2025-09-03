@@ -77,7 +77,7 @@ def login():
         user = cursor.fetchone()
         conn.close()
         if user and check_password_hash(user[1], password):
-            session["user_id"] = user[0]
+           session["user_id"] = user[0]  
 session["username"] = username
            return redirect(url_for("home"))
 
@@ -121,4 +121,5 @@ def view_expenses():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
