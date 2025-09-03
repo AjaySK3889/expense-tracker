@@ -16,13 +16,21 @@ login_manager.init_app(app)
 login_manager.login_view = "login"
 
 # ------------------- DATABASE CONNECTION -------------------
+import os
+import psycopg2
+import psycopg2.extras
+
 def get_db_connection():
-    return mysql.connector.connect(
-        host=os.environ.get("DB_HOST", "localhost"),
-        user=os.environ.get("DB_USER", "root"),
-        password=os.environ.get("DB_PASSWORD", ""),
-        database=os.environ.get("DB_NAME", "expense_tracker")
+    conn = psycopg2.connect(
+        host=os.environ.get("dpg-d2s5ilfdiees739dkke0-a.com"),
+        database=os.environ.get("expense_tracker_db_tuyt"),
+        user=os.environ.get("expense_tracker_db_tuyt_user"),
+        password=os.environ.get("pR1oqZM5haHiZSf884IIfgpS7f42AMjr"),
+        port=os.environ.get("DB_PORT", 5432)  # default Postgres port
     )
+    return conn
+
+
 
 # ------------------- USER CLASS -------------------
 class User(UserMixin):
@@ -165,3 +173,4 @@ def view_expenses():
 if __name__ == "__main__":
     # ✅ host 0.0.0.0 is important for Heroku
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
