@@ -104,21 +104,19 @@ def logout():
     return redirect("/login")
 
 # ---------------- HOME ----------------
-@app.route("/")
+@app.route('/')
 def home():
-    if "user_id" not in session:
-        return redirect("/login")
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
 
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT * FROM expenses WHERE user_id = ? ORDER BY date DESC",
-        (session["user_id"],)
-    )
-    expenses = cursor.fetchall()
+    # Get expenses
+    expenses = conn.execute('SELECT * FROM expenses WHERE user_id = ?', (session['user_id'],)).fetchall()
+    # Get user info
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
     conn.close()
 
-    return render_template("index.html", expenses=expenses)
+    return render_template("index.html", expenses=expenses, user=user)
 
 # ---------------- ADD EXPENSE ----------------
 @app.route("/add_expense", methods=["GET", "POST"])
@@ -149,4 +147,5 @@ def add_expense():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
