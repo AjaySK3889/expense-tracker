@@ -20,15 +20,21 @@ login_manager.login_view = "login"
 # ------------------- DATABASE CONNECTION -------------------
 
 
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
 def get_db_connection():
     conn = psycopg2.connect(
         host=os.environ.get("DB_HOST"),
-        database=os.environ.get("DB_NAME"),
+        dbname=os.environ.get("DB_NAME"),
         user=os.environ.get("DB_USER"),
         password=os.environ.get("DB_PASSWORD"),
-        port=os.environ.get("DB_PORT", 5432)
+        port=os.environ.get("DB_PORT", 5432),
+        sslmode="require"  # required for Render PostgreSQL
     )
     return conn
+
 
 # ------------------- USER CLASS -------------------
 class User(UserMixin):
@@ -49,33 +55,49 @@ def load_user(user_id):
     return None
 
 # ------------------- AUTH ROUTES -------------------
+from flask import request, redirect, url_for, render_template, flash, session
+from werkzeug.security import generate_password_hash
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
         username = request.form["username"]
-        email = request.form["email"]
         password = request.form["password"]
+        email = request.form["email"]
 
-        # ✅ Hash the password
-        hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
+        hashed_password = generate_password_hash(password)
 
-        db = get_db_connection()
-        cursor = db.cursor()
         try:
+            db = get_db_connection()
+            cursor = db.cursor(cursor_factory=RealDictCursor)
+
             cursor.execute(
                 "INSERT INTO users (username, password, email) VALUES (%s, %s, %s)",
                 (username, hashed_password, email)
             )
             db.commit()
-            flash("Registration successful! Please log in.", "success")
-            return redirect(url_for("login"))
-        except mysql.connector.IntegrityError:
-            flash("Username or Email already exists!", "danger")
-            return redirect(url_for("register"))
-        finally:
+
+            cursor.close()
             db.close()
 
+            flash("Registration successful! Please log in.")
+            return redirect(url_for("login"))
+
+        except psycopg2.errors.UniqueViolation:
+            db.rollback()
+            flash("Username or email already exists.")
+            return render_template("register.html")
+
+        except Exception as e:
+            db.rollback()
+            flash(f"An error occurred: {str(e)}")
+            return render_template("register.html")
+
     return render_template("register.html")
+
+
+from flask import request, redirect, url_for, render_template, flash, session
+from werkzeug.security import check_password_hash
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -84,20 +106,21 @@ def login():
         password = request.form["password"]
 
         db = get_db_connection()
-        cursor = db.cursor(dictionary=True)
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+
         cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
         user = cursor.fetchone()
+
+        cursor.close()
         db.close()
 
-        if user and bcrypt.check_password_hash(user["password"], password):
-            user_obj = User(user["user_id"], user["username"], user["email"])
-            login_user(user_obj)
-            flash("Login successful!", "success")
+        if user and check_password_hash(user['password'], password):
+            session['user_id'] = user['id']
             return redirect(url_for("index"))
         else:
-            flash("Invalid credentials!", "danger")
-            return redirect(url_for("login"))
-
+            flash("Invalid username or password")
+            return render_template("login.html")
+    
     return render_template("login.html")
 
 @app.route("/logout")
@@ -171,6 +194,7 @@ def view_expenses():
 if __name__ == "__main__":
     # ✅ host 0.0.0.0 is important for Heroku
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 
 
