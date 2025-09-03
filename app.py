@@ -128,7 +128,7 @@ def add_expense():
     if request.method == "POST":
         title = request.form["title"]
         amount = float(request.form["amount"])
-        category = request.form.get("category", "")
+        category = request.form.get('category')
         date = request.form.get("date", datetime.now().strftime("%Y-%m-%d"))
 
         conn = get_db_connection()
@@ -148,6 +148,7 @@ def add_expense():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 
