@@ -37,7 +37,10 @@ def init_db():
 init_db()
 
 # ---------------- ROUTES ----------------
-@app.route("/")
+from flask import Flask, render_template, redirect, url_for
+
+app = Flask(__name__)
+
 def home():
     if "user_id" in session:
         conn = sqlite3.connect(DB_NAME)
@@ -133,6 +136,7 @@ def view_expenses():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 
