@@ -11,7 +11,6 @@ DB_NAME = "expenses.db"
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-
     # Users table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
@@ -20,7 +19,6 @@ def init_db():
         password TEXT NOT NULL
     )
     """)
-
     # Expenses table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS expenses (
@@ -32,7 +30,6 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES users(id)
     )
     """)
-
     conn.commit()
     conn.close()
 
@@ -42,73 +39,67 @@ init_db()
 
 @app.route("/")
 def home():
-    if "user_id" not in session:
+    if "user_id" in session:
+        # Summary for dashboard
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT category, SUM(amount) 
+            FROM expenses 
+            WHERE user_id=? 
+            GROUP BY category
+        """, (session["user_id"],))
+        summary_raw = cursor.fetchall()
+        conn.close()
+
+        summary = []
+        for row in summary_raw:
+            summary.append({"category_name": row[0], "total_spent": row[1]})
+
+        return render_template("index.html", user=(session["user_id"], session["username"]), summary=summary)
+    else:
         return redirect(url_for("login"))
 
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT category, SUM(amount) 
-        FROM expenses 
-        WHERE user_id=? 
-        GROUP BY category
-    """, (session["user_id"],))
-    rows = cursor.fetchall()
-    conn.close()
-
-    # Prepare summary for template
-    summary = [{"category_name": r[0], "total_spent": r[1]} for r in rows]
-
-    return render_template("index.html", summary=summary)
-
-# --------- REGISTER ----------
-@app.route("/register", methods=["GET", "POST"])
+@app.route('/register', methods=["GET", "POST"])
 def register():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
         hashed_password = generate_password_hash(password)
-
         try:
             conn = sqlite3.connect(DB_NAME)
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", 
-                           (username, hashed_password))
+            cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_password))
             conn.commit()
             conn.close()
-            return redirect(url_for("login"))
+            return redirect(url_for('login'))
         except sqlite3.IntegrityError:
             return "Username already exists"
     return render_template("register.html")
 
-# --------- LOGIN ----------
-@app.route("/login", methods=["GET", "POST"])
+@app.route('/login', methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
-
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
         cursor.execute("SELECT id, password FROM users WHERE username=?", (username,))
         user = cursor.fetchone()
         conn.close()
-
         if user and check_password_hash(user[1], password):
-            session["user_id"] = user[0]
-            session["username"] = username
-            return redirect(url_for("home"))
+           session["user_id"] = user[0]  
+           session["username"] = username
+           return redirect(url_for("home"))
         else:
             return "Invalid credentials"
     return render_template("login.html")
 
-# --------- LOGOUT ----------
-@app.route("/logout")
+@app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for("login"))
+    return redirect(url_for('login'))
 
-# --------- ADD EXPENSE ----------
 @app.route("/add_expense", methods=["GET", "POST"])
 def add_expense():
     if "user_id" not in session:
@@ -116,9 +107,10 @@ def add_expense():
 
     if request.method == "POST":
         category = request.form["category"]
-        amount = float(request.form["amount"])
-        description = request.form.get("description", "")
+        amount = request.form["amount"]
+        description = request.form["description"]
 
+        # Connect to the database
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
         cursor.execute(
@@ -127,25 +119,21 @@ def add_expense():
         )
         conn.commit()
         conn.close()
+
         return redirect(url_for("view_expenses"))
 
     return render_template("add_expense.html")
 
-# --------- VIEW EXPENSES ----------
-@app.route("/view_expenses")
+@app.route('/view_expenses')
 def view_expenses():
     if "user_id" not in session:
-        return redirect(url_for("login"))
+        return redirect(url_for('login'))
 
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, category, amount, description FROM expenses WHERE user_id=?",
-        (session["user_id"],)
-    )
+    cursor.execute("SELECT id, category, amount, description FROM expenses WHERE user_id=?", (session["user_id"],))
     expenses = cursor.fetchall()
     conn.close()
-
     return render_template("view_expenses.html", expenses=expenses)
 
 # ---------------- RUN APP ----------------
