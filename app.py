@@ -37,20 +37,13 @@ def init_db():
 init_db()
 
 # ---------------- ROUTES ----------------
-from flask import Flask, render_template, redirect, url_for
+from flask import Flask, render_template
 
 app = Flask(__name__)
 
+@app.route("/")
 def home():
-    if "user_id" in session:
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, category, amount, description FROM expenses WHERE user_id=?", (session["user_id"],))
-        expenses = cursor.fetchall()
-        conn.close()
-        return render_template("index.html", expenses=expenses, user={"username": session["username"]})
-    else:
-        return redirect(url_for('login'))
+    return render_template("index.html")
 
 @app.route('/register', methods=["GET", "POST"])
 def register():
@@ -136,6 +129,7 @@ def view_expenses():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 
