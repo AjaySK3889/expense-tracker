@@ -37,9 +37,7 @@ def init_db():
 init_db()
 
 # ---------------- ROUTES ----------------
-from flask import Flask, render_template
 
-app = Flask(__name__)
 
 @app.route("/")
 def home():
@@ -129,6 +127,7 @@ def view_expenses():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 
