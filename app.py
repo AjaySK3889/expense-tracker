@@ -92,7 +92,7 @@ def login():
            session["username"] = username
            return redirect(url_for("home"))
         else:
-            return "Invalid credentials"
+            return "Invalid user"
     return render_template("login.html")
 
 @app.route('/logout')
@@ -139,3 +139,4 @@ def view_expenses():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
