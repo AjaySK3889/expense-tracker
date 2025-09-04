@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Expense Tracker Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -8,23 +9,24 @@
 <body>
     <div class="container">
         <h1>💰 Expense Tracker</h1>
-       <div class="nav">
-    <a href="/add_expense">➕ Add Expense</a>
-    <a href="/view_expense">📜 View Expenses</a>
-   {% if user %}
-  <a href="{{ url_for('logout') }}">🚪 Logout ({{ user[1] }})</a>
-{% else %}
-  <a href="{{ url_for('login') }}">Login</a>
-{% endif %}
-</div>
+
+        <div class="nav">
+            <a href="{{ url_for('add_expense') }}">➕ Add Expense</a>
+            <a href="{{ url_for('view_expenses') }}">📜 View Expenses</a>
+            {% if user %}
+                <a href="{{ url_for('logout') }}">🚪 Logout ({{ user }})</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">Login</a>
+            {% endif %}
+        </div>
 
         <h2>Summary by Category</h2>
         <table>
             <tr><th>Category</th><th>Total Spent</th></tr>
             {% for row in summary %}
             <tr>
-                <td>{{ row.category_name }}</td>
-                <td>₹{{ row.total_spent }}</td>
+                <td>{{ row[0] }}</td>
+                <td>₹{{ row[1] }}</td>
             </tr>
             {% endfor %}
         </table>
@@ -38,10 +40,10 @@
         const expenseChart = new Chart(ctx, {
             type: 'pie',
             data: {
-                labels: [{% for row in summary %}'{{ row.category_name }}',{% endfor %}],
+                labels: [{% for row in summary %}'{{ row[0] }}',{% endfor %}],
                 datasets: [{
                     label: 'Expenses',
-                    data: [{% for row in summary %}{{ row.total_spent }},{% endfor %}],
+                    data: [{% for row in summary %}{{ row[1] }},{% endfor %}],
                     backgroundColor: ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF'],
                     borderWidth: 1
                 }]
@@ -50,7 +52,3 @@
     </script>
 </body>
 </html>
-
-
-
-
