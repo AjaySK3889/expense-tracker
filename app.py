@@ -37,7 +37,7 @@ def init_db():
 init_db()
 
 # ---------------- ROUTES ----------------
-@app.route('/')
+@app.route("/")
 def home():
     if "user_id" in session:
         conn = sqlite3.connect(DB_NAME)
@@ -133,6 +133,7 @@ def view_expenses():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 
