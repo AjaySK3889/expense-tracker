@@ -79,21 +79,24 @@ def register():
 
 @app.route('/login', methods=["GET", "POST"])
 def login():
+    error = None
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
+        username = request.form["username"].strip()
+        password = request.form["password"].strip()
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
         cursor.execute("SELECT id, password FROM users WHERE username=?", (username,))
         user = cursor.fetchone()
         conn.close()
+
         if user and check_password_hash(user[1], password):
-           session["user_id"] = user[0]  
-           session["username"] = username
-           return redirect(url_for("home"))
+            session["user_id"] = user[0]
+            session["username"] = username
+            return redirect(url_for("home"))
         else:
-            return "Invalid user"
-    return render_template("login.html")
+            error = "Invalid user"
+    return render_template("login.html", error=error)
+
 
 @app.route('/logout')
 def logout():
@@ -139,4 +142,5 @@ def view_expenses():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
