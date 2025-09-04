@@ -5,7 +5,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = "any_random_string_here"
 
-
 DB_NAME = "expenses.db"
 
 # ---------------- DATABASE SETUP ----------------
@@ -37,7 +36,6 @@ def init_db():
 init_db()
 
 # ---------------- ROUTES ----------------
-
 
 @app.route("/")
 def home():
@@ -71,10 +69,9 @@ def login():
         user = cursor.fetchone()
         conn.close()
         if user and check_password_hash(user[1], password):
-           session["user_id"] = user[0]  
-           session["username"] = username
-           return redirect(url_for("home"))
-
+            session["user_id"] = user[0]  
+            session["username"] = username
+            return redirect(url_for("home"))
         else:
             return "Invalid credentials"
     return render_template("login.html")
@@ -84,34 +81,28 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-import sqlite3
-from flask import Flask, render_template, request, redirect, url_for
-
-app = Flask(__name__)
-
 @app.route("/add_expense", methods=["GET", "POST"])
 def add_expense():
+    if "user_id" not in session:
+        return redirect(url_for('login'))
+
     if request.method == "POST":
         category = request.form["category"]
         amount = request.form["amount"]
         description = request.form["description"]
 
-        # Connect to the database
-        conn = sqlite3.connect("expenses.db")
+        conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-
         cursor.execute(
-            "INSERT INTO expenses (category, amount, description) VALUES (?, ?, ?)",
-            (category, amount, description)
+            "INSERT INTO expenses (user_id, category, amount, description) VALUES (?, ?, ?, ?)",
+            (session["user_id"], category, amount, description)
         )
-
         conn.commit()
         conn.close()
 
-        return redirect(url_for("view_expenses"))  # make sure route exists
+        return redirect(url_for("view_expenses"))
 
     return render_template("add_expense.html")
-
 
 @app.route('/view_expenses')
 def view_expenses():
@@ -127,12 +118,3 @@ def view_expenses():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
-
-
-
-
-
-
-
-
-
