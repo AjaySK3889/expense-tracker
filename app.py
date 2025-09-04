@@ -39,7 +39,22 @@ init_db()
 
 @app.route("/")
 def home():
-    return render_template("index.html")
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT category, SUM(amount) 
+        FROM expenses 
+        WHERE user_id=? 
+        GROUP BY category
+    """, (session["user_id"],))
+    summary = cursor.fetchall()
+    conn.close()
+
+    return render_template("index.html", user=session["username"], summary=summary)
+
 
 @app.route('/register', methods=["GET", "POST"])
 def register():
@@ -118,3 +133,4 @@ def view_expenses():
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
