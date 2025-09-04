@@ -1,7 +1,6 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
     <title>Expense Tracker Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -13,20 +12,20 @@
         <div class="nav">
             <a href="{{ url_for('add_expense') }}">➕ Add Expense</a>
             <a href="{{ url_for('view_expenses') }}">📜 View Expenses</a>
-            {% if user %}
-                <a href="{{ url_for('logout') }}">🚪 Logout ({{ user }})</a>
+            {% if session.username %}
+                <a href="{{ url_for('logout') }}">🚪 Logout ({{ session.username }})</a>
             {% else %}
                 <a href="{{ url_for('login') }}">Login</a>
             {% endif %}
         </div>
 
         <h2>Summary by Category</h2>
-        <table>
-            <tr><th>Category</th><th>Total Spent</th></tr>
+        <table border="1">
+            <tr><th>Category</th><th>Total Spent (₹)</th></tr>
             {% for row in summary %}
             <tr>
-                <td>{{ row[0] }}</td>
-                <td>₹{{ row[1] }}</td>
+                <td>{{ row.category_name }}</td>
+                <td>{{ "%.2f"|format(row.total_spent) }}</td>
             </tr>
             {% endfor %}
         </table>
@@ -40,10 +39,10 @@
         const expenseChart = new Chart(ctx, {
             type: 'pie',
             data: {
-                labels: [{% for row in summary %}'{{ row[0] }}',{% endfor %}],
+                labels: [{% for row in summary %}'{{ row.category_name }}',{% endfor %}],
                 datasets: [{
                     label: 'Expenses',
-                    data: [{% for row in summary %}{{ row[1] }},{% endfor %}],
+                    data: [{% for row in summary %}{{ row.total_spent }},{% endfor %}],
                     backgroundColor: ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF'],
                     borderWidth: 1
                 }]
