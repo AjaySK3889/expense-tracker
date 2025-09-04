@@ -1,146 +1,136 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.secret_key = "any_random_string_here"
+app.secret_key = 'your_secret_key_here'  # Change this to a strong secret key
 
-DB_NAME = "expenses.db"
+DATABASE = 'expenses.db'
 
-# ---------------- DATABASE SETUP ----------------
+# Database helper functions
+def get_db_connection():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_db_connection()
     cursor = conn.cursor()
-    # Users table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
-    )
-    """)
-    # Expenses table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS expenses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        category TEXT NOT NULL,
-        amount REAL NOT NULL,
-        description TEXT,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-    """)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS expenses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            category TEXT NOT NULL,
+            amount REAL NOT NULL,
+            description TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+    ''')
     conn.commit()
     conn.close()
 
 init_db()
 
-# ---------------- ROUTES ----------------
+# Decorator for login-required pages
+def login_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
-@app.route("/")
+# Routes
+@app.route('/')
 def home():
-    if "user_id" in session:
-        # Summary for dashboard
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT category, SUM(amount) 
-            FROM expenses 
-            WHERE user_id=? 
-            GROUP BY category
-        """, (session["user_id"],))
-        summary_raw = cursor.fetchall()
-        conn.close()
+    if 'user_id' in session:
+        return redirect(url_for('view_expenses'))
+    return redirect(url_for('login'))
 
-        summary = []
-        for row in summary_raw:
-            summary.append({"category_name": row[0], "total_spent": row[1]})
-
-        return render_template("index.html", user=(session["user_id"], session["username"]), summary=summary)
-    else:
-        return redirect(url_for("login"))
-
-@app.route('/register', methods=["GET", "POST"])
+@app.route('/register', methods=['GET', 'POST'])
 def register():
-    if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
-        hashed_password = generate_password_hash(password)
+    if request.method == 'POST':
+        username = request.form['username']
+        email = request.form['email']
+        password = generate_password_hash(request.form['password'])
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
         try:
-            conn = sqlite3.connect(DB_NAME)
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed_password))
+            cursor.execute('INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
+                           (username, email, password))
             conn.commit()
-            conn.close()
+            flash('Registration successful. Please login.', 'success')
             return redirect(url_for('login'))
         except sqlite3.IntegrityError:
-            return "Username already exists"
-    return render_template("register.html")
+            flash('Username or email already exists.', 'error')
+        finally:
+            conn.close()
+    return render_template('register.html')
 
-@app.route('/login', methods=["GET", "POST"])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    error = None
-    if request.method == "POST":
-        username = request.form["username"].strip()
-        password = request.form["password"].strip()
-        conn = sqlite3.connect(DB_NAME)
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, password FROM users WHERE username=?", (username,))
+        cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
         user = cursor.fetchone()
         conn.close()
-
-        if user and check_password_hash(user[1], password):
-            session["user_id"] = user[0]
-            session["username"] = username
-            return redirect(url_for("home"))
+        
+        if user and check_password_hash(user['password'], password):
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            return redirect(url_for('view_expenses'))
         else:
-            error = "Invalid user"
-    return render_template("login.html", error=error)
-
+            flash('Invalid username or password', 'error')
+    return render_template('login.html')
 
 @app.route('/logout')
+@login_required
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
-@app.route("/add_expense", methods=["GET", "POST"])
+@app.route('/add_expense', methods=['GET', 'POST'])
+@login_required
 def add_expense():
-    if "user_id" not in session:
-        return redirect(url_for("login"))
-
-    if request.method == "POST":
-        category = request.form["category"]
-        amount = request.form["amount"]
-        description = request.form["description"]
-
-        # Connect to the database
-        conn = sqlite3.connect(DB_NAME)
+    if request.method == 'POST':
+        category = request.form['category']
+        amount = request.form['amount']
+        description = request.form['description']
+        
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO expenses (user_id, category, amount, description) VALUES (?, ?, ?, ?)",
-            (session["user_id"], category, amount, description)
+            'INSERT INTO expenses (user_id, category, amount, description) VALUES (?, ?, ?, ?)',
+            (session['user_id'], category, amount, description)
         )
         conn.commit()
         conn.close()
-
-        return redirect(url_for("view_expenses"))
-
-    return render_template("add_expense.html")
+        return redirect(url_for('view_expenses'))
+    return render_template('add_expense.html')
 
 @app.route('/view_expenses')
+@login_required
 def view_expenses():
-    if "user_id" not in session:
-        return redirect(url_for('login'))
-
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, category, amount, description FROM expenses WHERE user_id=?", (session["user_id"],))
+    cursor.execute('SELECT id, category, amount, description FROM expenses WHERE user_id = ?', (session['user_id'],))
     expenses = cursor.fetchall()
     conn.close()
-    return render_template("view_expenses.html", expenses=expenses)
+    return render_template('view_expenses.html', expenses=expenses)
 
-# ---------------- RUN APP ----------------
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
-
-
